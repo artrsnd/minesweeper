@@ -17,6 +17,8 @@ from typing import Tuple, Optional, List
 
 from random import randint
 
+from time import time
+
 
 IMG_PNG_ROOT_PATH = "icons/png/"
 IMG_ICO_ROOT_PATH = "icons/ico/"
@@ -30,6 +32,9 @@ class Minesweeper(tk.Frame):
     bombs: List[Tuple[int, int]] = list()
     marked_fields: List[Tuple[int, int]] = list()
     opened_fields_counter = 0
+
+    start_time = 0
+    end_time = 0
 
     def __init__(self, master=None):
         super().__init__(master)
@@ -77,6 +82,7 @@ class Minesweeper(tk.Frame):
         game_frame.grid(row=2)
 
         self.create_table(game_frame, (9, 9))
+        self.start_time = time()
 
     def create_table(self, parent: Optional[tk.Frame], dimension: Tuple[int, int]):
         """
@@ -290,7 +296,9 @@ class Minesweeper(tk.Frame):
 
         # if (self.opened_fields_counter == (9 * 9) - 9) and (self.marked_fields == self.bombs):
         if self.marked_fields == self.bombs:
-            messagebox.showinfo("End of game", "Congratulations! You won the game!")
+            self.end_time = time()
+            messagebox.showinfo("End of game", "Congratulations! You won the game in {}!".format(
+                self.end_time - self.start_time))
             self.quit()
 
 
