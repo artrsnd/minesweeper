@@ -13,7 +13,9 @@ All Rights Reserved (C) - 2018
 import tkinter as tk
 import tkinter.messagebox as messagebox
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+
+from random import randint
 
 
 IMG_PNG_ROOT_PATH = "icons/png/"
@@ -23,20 +25,10 @@ IMG_ICO_ROOT_PATH = "icons/ico/"
 class Minesweeper(tk.Frame):
     table_dimension: Tuple[int, int] = None
     images = dict()
-    table = [
-        [1, 1, 1, 0, 0, 0, 1, '*', 1],
-        [1, '*', 2, 1, 1, 1, 2, 2, 1],
-        [2, 2, 3, '*', 1, 1, '*', 1, 0],
-        [1, '*', 2, 1, 1, 1, 2, 2, 1],
-        [1, 1, 1, 1, 1, 0, 1, '*', 1],
-        [0, 0, 1, '*', 2, 1, 1, 1, 1],
-        [1, 1, 2, 2, '*', 1, 0, 0, 0],
-        [1, '*', 1, 0, 1, 1, 1, 0, 0],
-        [1, 1, 1, 0, 1, '*', 1, 0, 0]
-    ]
+    table = list()
 
-    bombs = [(0, 7), (1, 1), (2, 3), (2, 6), (3, 1), (4, 7), (5, 3), (6, 4), (7, 1), (8, 5)]
-    marked_fields = list()
+    bombs: List[Tuple[int, int]] = list()
+    marked_fields: List[Tuple[int, int]] = list()
     opened_fields_counter = 0
 
     def __init__(self, master=None):
@@ -100,7 +92,9 @@ class Minesweeper(tk.Frame):
 
         parent = self if parent is None else parent
 
-        # TODO: CREATE RANDOM TABLES
+        # Create a table with zeroes
+        for i in range(dimension[0]):
+            self.table.append([0 for j in range(dimension[1])])
 
         for i in range(dimension[0]):
             for j in range(dimension[1]):
@@ -113,10 +107,87 @@ class Minesweeper(tk.Frame):
                 btn.bind("<Button-1>", lambda event, arg=(i, j): self.left_click(event, arg))
                 btn.bind("<Button-3>", lambda event, arg=(i, j): self.right_click(event, arg))
 
-                # Every table cell have the button and the value
-                self.table[i][j] = (btn, self.table[i][j])
-
                 btn.grid(row=i, column=j)
+
+                # Every table cell have the button and the value
+                pos = list()
+                pos.append(btn)
+                pos.append(0)
+                self.table[i][j] = pos
+
+        # Rand bombs
+        for b in range(10):
+
+            try:
+                while True:
+                    pos = (randint(0, 8), randint(0, 8))
+                    self.bombs.index(pos, 0, 9)
+            except ValueError:
+                self.bombs.append(pos)
+
+        self.bombs.sort()
+        print(self.bombs)
+
+        # Calculate the fields
+        for bomb in self.bombs:
+            pos = self.table[bomb[0]][bomb[1]]
+            pos[1] = '*'
+
+            # N
+            if bomb[0] > 0:
+                pos = self.table[bomb[0] - 1][bomb[1]]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # E
+            if bomb[1] < len(self.table[0]) - 1:
+                pos = self.table[bomb[0]][bomb[1] + 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # NE
+            if (bomb[0] > 0) and (bomb[1] < len(self.table[0])) - 1:
+                pos = self.table[bomb[0] - 1][bomb[1] + 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # S
+            if bomb[0] < len(self.table) - 1:
+                pos = self.table[bomb[0] + 1][bomb[1]]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # SE
+            if (bomb[1] < len(self.table[0]) - 1) and (bomb[0] < len(self.table) - 1):
+                pos = self.table[bomb[0] + 1][bomb[1] + 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # W
+            if bomb[1] > 0:
+                pos = self.table[bomb[0]][bomb[1] - 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # SW
+            if (bomb[0] < len(self.table) - 1) and (bomb[1] > 0):
+                pos = self.table[bomb[0] + 1][bomb[1] - 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
+
+            # NW
+            if (bomb[0] > 0) and (bomb[1] > 0):
+                pos = self.table[bomb[0] - 1][bomb[1] - 1]
+
+                if type(pos[1]) != str:
+                    pos[1] += 1
 
     def right_click(self, event, coords: Tuple[int, int]):
         position = self.table[coords[0]][coords[1]]
@@ -217,8 +288,8 @@ class Minesweeper(tk.Frame):
     def is_win(self):
         self.marked_fields.sort()
 
-        if (self.opened_fields_counter == (9 * 9) - 9) and (self.marked_fields == self.bombs):
-            # if self.marked_fields == self.bombs:
+        # if (self.opened_fields_counter == (9 * 9) - 9) and (self.marked_fields == self.bombs):
+        if self.marked_fields == self.bombs:
             messagebox.showinfo("End of game", "Congratulations! You won the game!")
             self.quit()
 
