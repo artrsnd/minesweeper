@@ -17,8 +17,10 @@ from typing import Tuple, Optional, List
 
 from random import randint
 
-from time import time
-
+from time import time, sleep
+from core import Threading
+from threading import Thread
+from utils.Time import Time
 
 IMG_PNG_ROOT_PATH = "icons/png/"
 IMG_ICO_ROOT_PATH = "icons/ico/"
@@ -28,6 +30,9 @@ class Minesweeper(tk.Frame):
     table_dimension: Tuple[int, int] = None
     images = dict()
     table = list()
+    win = None
+    threads: List[Thread] = list()
+    exit = False
 
     bombs: List[Tuple[int, int]] = list()
     marked_fields: List[Tuple[int, int]] = list()
@@ -37,14 +42,14 @@ class Minesweeper(tk.Frame):
     end_time = 0
 
     def __init__(self, master=None):
-        super().__init__(master)
+        super(Minesweeper, self).__init__(master)
         self.master = master
-        self.master.resizable(False, False)
         self.grid()
         self.configure()
         self.build()
 
     def configure(self, **kwargs):
+        self.master.resizable(False, False)
         self.load_images()
         self.master.title("Minesweeper [Campo Minado]")
         self.master.attributes()
@@ -62,6 +67,19 @@ class Minesweeper(tk.Frame):
         self.images["field"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'bg/field.png')
         self.images["field_open"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'bg/field_open.png')
 
+    @Threading.thread
+    def show_time(self, parent: tk.Frame, interval):
+        while True:
+            sleep(interval)
+
+            t = Time.calculate_time(self.start_time, time())
+
+            if not self.exit:
+                tk.Label(parent, text=Time.format_time(t)) \
+                    .grid(row=0, column=2)
+            else:
+                return
+
     def build(self):
         # Frame that will contain the menu options
         menu_frame = tk.Frame(self.master)
@@ -73,9 +91,8 @@ class Minesweeper(tk.Frame):
         top_frame = tk.Frame(self.master)
         top_frame.grid(row=1)
 
-        # TODO: build interface and make functional
-        # tk.Label(top_frame, text="Time: ").grid(row=0, column=0, )
-        # tk.Label(top_frame, text="00:00").grid(row=0, column=1)
+        tk.Label(top_frame, text="Time: ").grid(row=0, column=0)
+        self.threads.append(self.show_time(top_frame, 0.5))
 
         # Frame that contains the table of the game
         game_frame = tk.Frame(self.master)
@@ -85,6 +102,7 @@ class Minesweeper(tk.Frame):
         self.start_time = time()
 
     def create_table(self, parent: Optional[tk.Frame], dimension: Tuple[int, int]):
+        # TODO: OPTIMIZE THE ALGORITHM AND FIX THE COUNTER OF THE FIELDS
         """
         Create the minesweeper table according the passed dimensions
 
@@ -123,6 +141,7 @@ class Minesweeper(tk.Frame):
 
         # Rand bombs
         for b in range(10):
+            pos = None
 
             try:
                 while True:
@@ -198,9 +217,8 @@ class Minesweeper(tk.Frame):
     def right_click(self, event, coords: Tuple[int, int]):
         position = self.table[coords[0]][coords[1]]
         btn: tk.Button = position[0]
-        value = position[1]
 
-        if btn["text"] == str():
+        if event is None or btn["text"] == str():
             if btn["image"] == str(self.images["field"]):
                 # Mark a position with a flag
                 btn["image"] = self.images["red_flag"]
@@ -235,9 +253,8 @@ class Minesweeper(tk.Frame):
                     #     self.build()
                     # else:
                     #     self.quit()
-
-                    messagebox.showerror("End of game", "You lose the game!")
-                    self.quit()
+                    self.win = False
+                    self.exit_app()
             elif value != 0:
                 # Configure the button to show the number centrilized
                 btn["compound"] = tk.CENTER
@@ -264,6 +281,7 @@ class Minesweeper(tk.Frame):
                 self.left_click(None, (i, j))
 
     def open_empty_fields(self, coords: Tuple[int, int]):
+        # TODO: SHOW THE FIRST VALUE OF THE FIELDS
         """
         Open all empty fields of the table using backtrack technique
 
@@ -274,33 +292,55 @@ class Minesweeper(tk.Frame):
         btn: tk.Button = position[0]
         value = position[1]
 
-        if btn["state"] != tk.DISABLED and value == 0:
-            btn["state"] = tk.DISABLED
-            btn["image"] = self.images["field_open"]
-            self.opened_fields_counter += 1
+        if btn["state"] != tk.DISABLED:
+            if value == 0:
+                btn["state"] = tk.DISABLED
+                btn["image"] = self.images["field_open"]
+                self.opened_fields_counter += 1
 
-            if coords[0] > 0:
-                self.open_empty_fields((coords[0] - 1, coords[1]))
+                if coords[0] > 0:
+                    self.open_empty_fields((coords[0] - 1, coords[1]))
 
-            if coords[1] < len(self.table[0]) - 1:
-                self.open_empty_fields((coords[0], coords[1] + 1))
+                if coords[1] < len(self.table[0]) - 1:
+                    self.open_empty_fields((coords[0], coords[1] + 1))
 
-            if coords[0] < len(self.table) - 1:
-                self.open_empty_fields((coords[0] + 1, coords[1]))
+                if coords[0] < len(self.table) - 1:
+                    self.open_empty_fields((coords[0] + 1, coords[1]))
 
-            if coords[1] > 0:
-                self.open_empty_fields((coords[0], coords[1] - 1))
+                if coords[1] > 0:
+                    self.open_empty_fields((coords[0], coords[1] - 1))
+            else:
+                self.left_click(None, (coords[0], coords[1]))
 
     def is_win(self):
         self.marked_fields.sort()
 
-        # if (self.opened_fields_counter == (9 * 9) - 9) and (self.marked_fields == self.bombs):
         if self.marked_fields == self.bombs:
+            self.win = True
+            self.exit_app()
+
+    def exit_app(self):
+        if self.win is None:
+            if messagebox.askokcancel("Quit", "You want to quit now?"):
+                self.exit = True
+        elif self.win is True:
             self.end_time = time()
+
             messagebox.showinfo("End of game", "Congratulations! You won the game in {}!".format(
-                self.end_time - self.start_time))
+                Time.format_time(Time.calculate_time(self.start_time, self.end_time))))
+            self.exit = True
+        elif self.win is False:
+            messagebox.showerror("End of game", "You lose the game!")
+            self.exit = True
+
+        if self.exit is True:
+            for i in app.threads:
+                i.join()
+
             self.quit()
 
 
 if __name__ == "__main__":
-    Minesweeper(tk.Tk(className="Minesweeper")).mainloop()
+    app = Minesweeper(tk.Tk(className="Minesweeper"))
+    app.master.protocol("WM_DELETE_WINDOW", app.exit_app)
+    app.mainloop()
