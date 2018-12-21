@@ -18,9 +18,8 @@ from typing import Tuple, Optional, List
 from random import randint
 
 from time import time, sleep
-from core import Threading
 from threading import Thread
-from utils.Time import Time
+from ui.utils import Time, Threading
 
 IMG_PNG_ROOT_PATH = "icons/png/"
 IMG_ICO_ROOT_PATH = "icons/ico/"
@@ -47,6 +46,7 @@ class Minesweeper(tk.Frame):
         self.grid()
         self.configure()
         self.build()
+        # self.show_all_table()
 
     def configure(self, **kwargs):
         self.master.resizable(False, False)
