@@ -6,6 +6,7 @@ class Time:
     def __init__(self):
         self.start_time = 0
         self.end_time = 0
+        self.all_time = 0
 
     @staticmethod
     def calculate_time(start_time: float, end_time: float) -> Tuple[int, int]:

@@ -36,12 +36,17 @@ class Game(object):
     """
     Class with all control variables and methods to control the game.
     """
+    player: str = "none"
     win: bool = None
     exit: bool = False
 
     time: Time = Time()
 
     marked_fields: List[Tuple[int, int]] = list()  # List with the marked fields
+    c_marked_fields: int = 0
+
+    def __init__(self, player: str):
+        self.player = player
 
 
 class PlayableBoard(tk.Frame):
@@ -50,21 +55,22 @@ class PlayableBoard(tk.Frame):
     """
     board: MinesweeperBoard = None
     properties: Properties = None
-    info: Game = Game()
+    game_info: Game = None
 
-    threads: List[Thread] = list()  # list of threads
-    fields = list()  # List of the fields and his associated buttons
+    __threads: List[Thread] = list()  # list of threads
+    __fields = list()  # List of the fields and his associated buttons
 
-    def __init__(self, properties: Properties, board: MinesweeperBoard, master=None):
+    def __init__(self, properties: Properties, info: Game, board: MinesweeperBoard, master=None):
         super(PlayableBoard, self).__init__(master)
         self.master = master
+        self.game_info = info
         self.properties = properties
         self.board = board
         self.grid()
-        self.configure()
+        self.__configure()
         self.__build_window()
 
-    def configure(self, **kwargs):
+    def __configure(self):
         self.master.resizable(False, False)
         self.properties.load_images()
         self.master.title("Minesweeper")
@@ -74,15 +80,31 @@ class PlayableBoard(tk.Frame):
                      self.properties.images["bomb"])  # Define the menubar icon of the application
 
     @Threading.thread
-    def show_time(self, parent: tk.Frame, interval):
+    def __show_time(self, parent: tk.Frame, interval):
         while True:
             sleep(interval)
 
-            t = Time.calculate_time(self.info.time.start_time, time())
+            t = Time.calculate_time(self.game_info.time.start_time, time())
 
-            if not self.info.exit:
+            if not self.game_info.exit and self.game_info.win is None:
                 tk.Label(parent, text=Time.format_time(t)) \
-                    .grid(row=0, column=2)
+                    .grid(row=0, column=1)
+            else:
+                return
+
+    @Threading.thread
+    def __update_game_info(self, parent: tk.Frame):
+        qtd = self.game_info.c_marked_fields - 1
+
+        while True:
+            sleep(0.25)
+
+            if not self.game_info.exit:
+                if qtd != self.game_info.c_marked_fields or qtd == -1:
+                    qtd = self.game_info.c_marked_fields
+
+                    tk.Label(parent, text="Bombs: {}/{}".format(qtd, self.board.total_bombs)) \
+                        .grid(row=0, column=2)
             else:
                 return
 
@@ -102,14 +124,15 @@ class PlayableBoard(tk.Frame):
         top_frame.grid(row=1)
 
         tk.Label(top_frame, text="Time: ").grid(row=0, column=0)
-        self.threads.append(self.show_time(top_frame, 0.5))
+        self.__threads.append(self.__show_time(top_frame, 0.5))
+        self.__threads.append(self.__update_game_info(top_frame))
 
         # Frame that contains the table of the game
         game_frame = tk.Frame(self.master)
         game_frame.grid(row=2)
 
         self.__create_tk_board(game_frame)
-        self.info.time.start_time = time()
+        self.game_info.time.start_time = time()
 
     def __create_tk_board(self, parent: Optional[tk.Frame]):
         rows = self.board.dimensions[0]
@@ -131,25 +154,26 @@ class PlayableBoard(tk.Frame):
                 btn.grid(row=row, column=col)
                 r.append(btn)
 
-            self.fields.append(r)
+            self.__fields.append(r)
 
     def __right_click(self, event, coords: Tuple[int, int]):
-        btn: tk.Button = self.fields[coords[0]][coords[1]]
+        btn: tk.Button = self.__fields[coords[0]][coords[1]]
 
         if event is None or btn["text"] == str():
             if btn["image"] == str(self.properties.images["field"]):
                 # Mark a position with a flag
                 btn["image"] = self.properties.images["white_flag"]
-                self.info.marked_fields.append(coords)
+                self.game_info.marked_fields.append(coords)
             elif btn["image"] == str(self.properties.images["white_flag"]):
                 # Unmark that position
                 btn["image"] = self.properties.images["field"]
-                self.info.marked_fields.remove(coords)
+                self.game_info.marked_fields.remove(coords)
 
-            self.is_win()
+            self.game_info.c_marked_fields += 1
+            self.__is_win()
 
     def __left_click(self, event, coords: Tuple[int, int]):
-        btn: tk.Button = self.fields[coords[0]][coords[1]]
+        btn: tk.Button = self.__fields[coords[0]][coords[1]]
         value = self.board.board[coords[0]][coords[1]]
 
         if btn["image"] != str(self.properties.images["white_flag"]):
@@ -159,8 +183,8 @@ class PlayableBoard(tk.Frame):
                 if event is not None:
                     self.__show_bombs()
 
-                    self.info.win = False
-                    self.exit_app()
+                    self.game_info.win = False
+                    self.__exit_app()
             elif value != 0:
                 # Configure the button to show the number in a centralized position
                 btn["compound"] = tk.CENTER
@@ -173,7 +197,7 @@ class PlayableBoard(tk.Frame):
             else:
                 raise RuntimeError("An error has occurred")
 
-            self.is_win()
+            self.__is_win()
 
     def __show_bombs(self):
         """
@@ -191,7 +215,8 @@ class PlayableBoard(tk.Frame):
         :param coords: Tuple[int, int]
         :return: ---
         """
-        btn: tk.Button = self.fields[coords[0]][coords[1]]
+        # TODO: OPEN CORNERS!!!!
+        btn: tk.Button = self.__fields[coords[0]][coords[1]]
         value = self.board.board[coords[0]][coords[1]]
 
         if btn["state"] != tk.DISABLED:
@@ -213,19 +238,19 @@ class PlayableBoard(tk.Frame):
             else:
                 self.__left_click(None, (coords[0], coords[1]))
 
-    def is_win(self):
+    def __is_win(self):
         """
         Verify if the the player win the game. If yes, the game is finished.
         To win the game, the player must mark all the fields bomb correctly;
         :return:
         """
-        self.info.marked_fields.sort()  # sort the player marked fields
+        self.game_info.marked_fields.sort()  # sort the player marked fields
 
-        if self.info.marked_fields == self.board.bombs:  # compare the marked fields with the solving set
-            self.info.win = True
-            self.exit_app()
+        if self.game_info.marked_fields == self.board.bombs:  # compare the marked fields with the solving set
+            self.game_info.win = True
+            self.__exit_app()
 
-    def exit_app(self):
+    def __exit_app(self):
         """
         Exit and close the game. This method can be called in various situations:
         - if the player wants close the game
@@ -234,21 +259,23 @@ class PlayableBoard(tk.Frame):
 
         :return: None
         """
-        if self.info.win is None:
+        if self.game_info.win is None:
             if messagebox.askokcancel("Quit", "You want to quit now?"):
-                self.info.exit = True
-        elif self.info.win is True:
-            self.info.time.end_time = time()
+                self.game_info.exit = True
+        elif self.game_info.win is True:
+            self.game_info.time.end_time = time()
+            self.game_info.time.all_time = Time.calculate_time(self.game_info.time.start_time, self.game_info.time.end_time)
 
-            messagebox.showinfo("End of game", "Congratulations! You won the game in {}!".format(
-                Time.format_time(Time.calculate_time(self.info.time.start_time, self.info.time.end_time))))
-            self.info.exit = True
-        elif self.info.win is False:
+            messagebox.showinfo("End of game", "Congratulations {}! You won the game in {}!".format(
+                self.game_info.player,
+                Time.format_time(self.game_info.time.all_time)))
+            self.game_info.exit = True
+        elif self.game_info.win is False:
             messagebox.showerror("End of game", "You lose the game!")
-            self.info.exit = True
+            self.game_info.exit = True
 
-        if self.info.exit is True:  # terminate all threads correctly
-            for thread in self.threads:
+        if self.game_info.exit is True:  # terminate all threads correctly
+            for thread in self.__threads:
                 thread.join()
 
         self.quit()

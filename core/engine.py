@@ -31,7 +31,7 @@ class MinesweeperBoard(object):
         :param dimensions: the dimensions of the board.
         :param bomb_percent: the bomb percent in the table. Can not be less than 5% of the board size.
         """
-        if dimensions[1] < dimensions[0]:  # TODO: add a minimum height x width for the board
+        if dimensions[1] < dimensions[0] or (dimensions[0] * dimensions[1] < 6**2):
             raise ValueError("Table dimension is not valid")
         else:
             self.__dimensions = dimensions
@@ -174,8 +174,8 @@ class MinesweeperBoard(object):
 
             return str_line + "\n"
 
-        columns = self.__dimensions[0]
-        lines = self.__dimensions[1]
+        lines = self.__dimensions[0]
+        columns = self.__dimensions[1]
 
         for i in range(lines + 1):
             if i == 0:  # Change the charset to print the line before the first row
