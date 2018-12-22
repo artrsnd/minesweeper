@@ -31,7 +31,7 @@ def main():
     info, properties = load_config()
 
     app = PlayableBoard(properties, info, board, Tk(className="Minesweeper"))
-    app.master.protocol("WM_DELETE_WINDOW", app.__exit_app)
+    app.master.protocol("WM_DELETE_WINDOW", app.exit_app)
     app.mainloop()
 
 

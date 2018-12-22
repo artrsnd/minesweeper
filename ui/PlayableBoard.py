@@ -184,7 +184,7 @@ class PlayableBoard(tk.Frame):
                     self.__show_bombs()
 
                     self.game_info.win = False
-                    self.__exit_app()
+                    self.exit_app()
             elif value != 0:
                 # Configure the button to show the number in a centralized position
                 btn["compound"] = tk.CENTER
@@ -207,6 +207,16 @@ class PlayableBoard(tk.Frame):
         """
         for b in self.board.bombs:
             self.__left_click(None, b)
+
+            try:
+                self.game_info.marked_fields.remove(b)
+            except ValueError:
+                pass
+
+        # Mark all wrong fields with the red flag
+        for b in self.game_info.marked_fields:
+            btn: tk.Button = self.__fields[b[0]][b[1]]
+            btn["image"] = self.properties.images["red_flag"]
 
     def __open_empty_fields(self, coords: Tuple[int, int]):
         """
@@ -248,9 +258,9 @@ class PlayableBoard(tk.Frame):
 
         if self.game_info.marked_fields == self.board.bombs:  # compare the marked fields with the solving set
             self.game_info.win = True
-            self.__exit_app()
+            self.exit_app()
 
-    def __exit_app(self):
+    def exit_app(self):
         """
         Exit and close the game. This method can be called in various situations:
         - if the player wants close the game
