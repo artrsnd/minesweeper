@@ -3,7 +3,7 @@
 from typing import Tuple, List, NewType
 from random import randint
 
-Board = NewType("Field", List[List[int]])
+Board = NewType("Board", List[List[int]])
 
 
 class MinesweeperBoard(object):
@@ -18,7 +18,7 @@ class MinesweeperBoard(object):
     __board: Board = None
 
     __bomb_percent: float
-    __bombs: List[Tuple[int, int]]
+    __bombs: List[Tuple[int, int]] = None
 
     __total_fields: int
     __total_bombs: int
@@ -118,6 +118,26 @@ class MinesweeperBoard(object):
                     # If the column is valid and the column is not a bomb, sum 1 to the field
                     if (-1 < c < col_limit) and (self.__board[r][c] != '*'):
                         self.__board[r][c] += 1
+
+    @property
+    def dimensions(self):
+        return self.__dimensions
+
+    @property
+    def board(self):
+        return self.__board
+
+    @property
+    def bombs(self):
+        return self.__bombs
+
+    @property
+    def bomb_percent(self):
+        return self.__bomb_percent
+
+    @property
+    def total_bombs(self):
+        return self.__total_bombs
 
     def __str__(self):
         return "=== [MINESWEEPER BOARD] ===\n" \

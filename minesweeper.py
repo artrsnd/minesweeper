@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from core.engine import MinesweeperBoard
+from ui.PlayableBoard import PlayableBoard
+from tkinter import Tk
 
 
 def main():
@@ -8,6 +10,10 @@ def main():
     board.generate_board()
     print(str(board))
     print(board.format_board())
+
+    app = PlayableBoard(board, Tk(className="Minesweeper"))
+    app.master.protocol("WM_DELETE_WINDOW", app.exit_app)
+    app.mainloop()
 
 
 if __name__ == "__main__":
