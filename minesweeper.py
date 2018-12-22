@@ -3,6 +3,7 @@
 from core.engine import MinesweeperBoard
 from ui.PlayableBoard import PlayableBoard
 from tkinter import Tk
+from ui.PlayableBoard import Properties
 
 
 def main():
@@ -11,7 +12,8 @@ def main():
     print(str(board))
     print(board.format_board())
 
-    app = PlayableBoard(board, Tk(className="Minesweeper"))
+    properties = Properties()
+    app = PlayableBoard(properties, board, Tk(className="Minesweeper"))
     app.master.protocol("WM_DELETE_WINDOW", app.exit_app)
     app.mainloop()
 
