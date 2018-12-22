@@ -1,13 +1,3 @@
-#!/usr/bin/python3.7
-
-
-"""
-
-Minesweeper made in Python 3.7 by Pedro Augusto Resende (https://www.github.com/resxp)
-All Rights Reserved (C) - 2018
-
-"""
-
 # -*- coding: utf-8 -*-
 
 import tkinter as tk
@@ -15,35 +5,36 @@ import tkinter.messagebox as messagebox
 
 from typing import Tuple, Optional, List
 
-from random import randint
-
 from time import time, sleep
-from core import Threading
 from threading import Thread
-from utils.Time import Time
+from ui.utils import Threading
+from ui.utils.Time import Time
 
-IMG_PNG_ROOT_PATH = "icons/png/"
-IMG_ICO_ROOT_PATH = "icons/ico/"
+from core.engine import MinesweeperBoard
+
+IMG_PNG_ROOT_PATH = "ui/icons/png/"
 
 
-class Minesweeper(tk.Frame):
-    table_dimension: Tuple[int, int] = None
+class PlayableBoard(tk.Frame):
+    board: MinesweeperBoard = None
+
+    threads: List[Thread] = list()  # list of threads in the game
     images = dict()
-    table = list()
     win = None
-    threads: List[Thread] = list()
+
     exit = False
 
-    bombs: List[Tuple[int, int]] = list()
+    fields = list()
     marked_fields: List[Tuple[int, int]] = list()
     opened_fields_counter = 0
 
     start_time = 0
     end_time = 0
 
-    def __init__(self, master=None):
-        super(Minesweeper, self).__init__(master)
+    def __init__(self, board: MinesweeperBoard, master=None):
+        super(PlayableBoard, self).__init__(master)
         self.master = master
+        self.board = board
         self.grid()
         self.configure()
         self.build()
@@ -63,6 +54,7 @@ class Minesweeper(tk.Frame):
         """
         self.images["bomb"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'bomb_32.png')
         self.images["red_flag"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'red_flag_32.png')
+        self.images["white_flag"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'white_flag_32.png')
         self.images["explosion"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'explosion_32.png')
         self.images["field"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'bg/field.png')
         self.images["field_open"] = tk.PhotoImage(file=IMG_PNG_ROOT_PATH + 'bg/field_open.png')
@@ -98,132 +90,40 @@ class Minesweeper(tk.Frame):
         game_frame = tk.Frame(self.master)
         game_frame.grid(row=2)
 
-        self.create_table(game_frame, (9, 9))
+        self.create_table(game_frame)
         self.start_time = time()
 
-    def create_table(self, parent: Optional[tk.Frame], dimension: Tuple[int, int]):
-        # TODO: OPTIMIZE THE ALGORITHM AND FIX THE COUNTER OF THE FIELDS
-        """
-        Create the minesweeper table according the passed dimensions
+    def create_table(self, parent: Optional[tk.Frame]):
+        rows = self.board.dimensions[0]
+        cols = self.board.dimensions[1]
 
-        :param parent: the Tk Object that is parent
-        :param dimension: a Tuple[int, int]
-        """
-        if dimension[1] < dimension[0]:
-            raise ValueError("Table dimension is not valid")
-        else:
-            self.table_dimension = dimension
+        for row in range(rows):
+            r = list()
 
-        parent = self if parent is None else parent
-
-        # Create a table with zeroes
-        for i in range(dimension[0]):
-            self.table.append([0 for j in range(dimension[1])])
-
-        for i in range(dimension[0]):
-            for j in range(dimension[1]):
+            for col in range(cols):
                 btn = tk.Button(parent,
                                 image=self.images["field"],
                                 width=32, height=32)
 
                 # Bind mouse events to the button
                 # https://stackoverflow.com/questions/3296893/how-to-pass-an-argument-to-event-handler-in-tkinter
-                btn.bind("<Button-1>", lambda event, arg=(i, j): self.left_click(event, arg))
-                btn.bind("<Button-3>", lambda event, arg=(i, j): self.right_click(event, arg))
+                btn.bind("<Button-1>", lambda event, arg=(row, col): self.left_click(event, arg))
+                btn.bind("<Button-3>", lambda event, arg=(row, col): self.right_click(event, arg))
 
-                btn.grid(row=i, column=j)
+                btn.grid(row=row, column=col)
+                r.append(btn)
 
-                # Every table cell have the button and the value
-                pos = list()
-                pos.append(btn)
-                pos.append(0)
-                self.table[i][j] = pos
-
-        # Rand bombs
-        for b in range(10):
-            pos = None
-
-            try:
-                while True:
-                    pos = (randint(0, 8), randint(0, 8))
-                    self.bombs.index(pos, 0, 9)
-            except ValueError:
-                self.bombs.append(pos)
-
-        self.bombs.sort()
-        print(self.bombs)
-
-        # Calculate the fields
-        for bomb in self.bombs:
-            pos = self.table[bomb[0]][bomb[1]]
-            pos[1] = '*'
-
-            # N
-            if bomb[0] > 0:
-                pos = self.table[bomb[0] - 1][bomb[1]]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # E
-            if bomb[1] < len(self.table[0]) - 1:
-                pos = self.table[bomb[0]][bomb[1] + 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # NE
-            if (bomb[0] > 0) and (bomb[1] < len(self.table[0])) - 1:
-                pos = self.table[bomb[0] - 1][bomb[1] + 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # S
-            if bomb[0] < len(self.table) - 1:
-                pos = self.table[bomb[0] + 1][bomb[1]]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # SE
-            if (bomb[1] < len(self.table[0]) - 1) and (bomb[0] < len(self.table) - 1):
-                pos = self.table[bomb[0] + 1][bomb[1] + 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # W
-            if bomb[1] > 0:
-                pos = self.table[bomb[0]][bomb[1] - 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # SW
-            if (bomb[0] < len(self.table) - 1) and (bomb[1] > 0):
-                pos = self.table[bomb[0] + 1][bomb[1] - 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
-
-            # NW
-            if (bomb[0] > 0) and (bomb[1] > 0):
-                pos = self.table[bomb[0] - 1][bomb[1] - 1]
-
-                if type(pos[1]) != str:
-                    pos[1] += 1
+            self.fields.append(r)
 
     def right_click(self, event, coords: Tuple[int, int]):
-        position = self.table[coords[0]][coords[1]]
-        btn: tk.Button = position[0]
+        btn: tk.Button = self.fields[coords[0]][coords[1]]
 
         if event is None or btn["text"] == str():
             if btn["image"] == str(self.images["field"]):
                 # Mark a position with a flag
-                btn["image"] = self.images["red_flag"]
+                btn["image"] = self.images["white_flag"]
                 self.marked_fields.append(coords)
-            elif btn["image"] == str(self.images["red_flag"]):
+            elif btn["image"] == str(self.images["white_flag"]):
                 # Unmark that position
                 btn["image"] = self.images["field"]
                 self.marked_fields.remove(coords)
@@ -231,32 +131,20 @@ class Minesweeper(tk.Frame):
             self.is_win()
 
     def left_click(self, event, coords: Tuple[int, int]):
-        position = self.table[coords[0]][coords[1]]
-        btn: tk.Button = position[0]
-        value = position[1]
+        btn: tk.Button = self.fields[coords[0]][coords[1]]
+        value = self.board.board[coords[0]][coords[1]]
 
-        if btn["image"] != str(self.images["red_flag"]):
+        if btn["image"] != str(self.images["white_flag"]):
             if value == '*':
                 btn["image"] = self.images["explosion"]
 
                 if event is not None:
-                    self.show_all_table()
+                    self.show_bombs()
 
-                    # End game here
-                    # TODO: fix this bug
-                    # Error here: when build the table, all the values is corrupted
-                    # answer = messagebox.askyesno("End of game", "You lose the game. Try again?")
-                    #
-                    # if answer is True:
-                    #     self.grid_remove()
-                    #     self.grid()
-                    #     self.build()
-                    # else:
-                    #     self.quit()
                     self.win = False
                     self.exit_app()
             elif value != 0:
-                # Configure the button to show the number centrilized
+                # Configure the button to show the number in a centralized position
                 btn["compound"] = tk.CENTER
                 btn["padx"] = 0
                 btn["pady"] = 0
@@ -270,15 +158,14 @@ class Minesweeper(tk.Frame):
 
             self.is_win()
 
-    def show_all_table(self):
+    def show_bombs(self):
         """
         Show all the items on table
 
         :return: ---
         """
-        for i in range(len(self.table)):
-            for j in range(len(self.table[0])):
-                self.left_click(None, (i, j))
+        for b in self.board.bombs:
+            self.left_click(None, b)
 
     def open_empty_fields(self, coords: Tuple[int, int]):
         # TODO: SHOW THE FIRST VALUE OF THE FIELDS
@@ -288,9 +175,8 @@ class Minesweeper(tk.Frame):
         :param coords: Tuple[int, int]
         :return: ---
         """
-        position = self.table[coords[0]][coords[1]]
-        btn: tk.Button = position[0]
-        value = position[1]
+        btn: tk.Button = self.fields[coords[0]][coords[1]]
+        value = self.board.board[coords[0]][coords[1]]
 
         if btn["state"] != tk.DISABLED:
             if value == 0:
@@ -301,10 +187,10 @@ class Minesweeper(tk.Frame):
                 if coords[0] > 0:
                     self.open_empty_fields((coords[0] - 1, coords[1]))
 
-                if coords[1] < len(self.table[0]) - 1:
+                if coords[1] < self.board.dimensions[1] - 1:
                     self.open_empty_fields((coords[0], coords[1] + 1))
 
-                if coords[0] < len(self.table) - 1:
+                if coords[0] < self.board.dimensions[0] - 1:
                     self.open_empty_fields((coords[0] + 1, coords[1]))
 
                 if coords[1] > 0:
@@ -315,7 +201,7 @@ class Minesweeper(tk.Frame):
     def is_win(self):
         self.marked_fields.sort()
 
-        if self.marked_fields == self.bombs:
+        if self.marked_fields == self.board.bombs:
             self.win = True
             self.exit_app()
 
@@ -334,13 +220,7 @@ class Minesweeper(tk.Frame):
             self.exit = True
 
         if self.exit is True:
-            for i in app.threads:
+            for i in self.threads:
                 i.join()
 
-            self.quit()
-
-
-if __name__ == "__main__":
-    app = Minesweeper(tk.Tk(className="Minesweeper"))
-    app.master.protocol("WM_DELETE_WINDOW", app.exit_app)
-    app.mainloop()
+        self.quit()
