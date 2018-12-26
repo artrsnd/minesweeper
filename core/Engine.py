@@ -2,8 +2,30 @@
 
 from typing import Tuple, List, NewType
 from random import randint
+from core.Time import Time
+from core.Config import GameSettings
 
 Board = NewType("Board", List[List[int]])
+
+
+class Game(object):
+    """
+    Class with all control variables and methods to control the game.
+    """
+    player: str = "none"
+    win: bool = None
+    exit: bool = False
+
+    time: Time = Time()
+
+    marked_fields: List[Tuple[int, int]] = list()  # List with the marked fields
+    c_marked_fields: int = 0
+
+    settings: GameSettings = None
+
+    def __init__(self, player: str, settings: GameSettings):
+        self.player = player
+        self.settings = settings
 
 
 class MinesweeperBoard(object):

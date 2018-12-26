@@ -1,0 +1,17 @@
+[GENERAL]
+TITLE=Campo Minado
+BOMBS=Bombas
+TIME=Tempo
+
+[END_GAME]
+TITLE=Fim do Jogo
+WIN_MESSAGE=Parabéns {} você venceu o jogo em {} minutos! :)
+LOSE_MESSAGE=Oh não! Você perdeu o jogo :(
+
+[QUIT]
+TITLE=Sair
+MESSAGE=Você deseja sair agora? Todo o seu progresso será perdido!
+
+[ERROR]
+RUNTIME_ERROR=Um erro de execução aconteceu :(
+

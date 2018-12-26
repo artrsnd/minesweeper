@@ -8,12 +8,12 @@ from typing import Tuple, Optional, List
 from time import time, sleep
 from threading import Thread
 from ui.utils import Threading
-from ui.utils.Time import Time
+from core.Time import Time
 
-from core.engine import MinesweeperBoard
+from core.Engine import MinesweeperBoard, Game
 
 
-class Properties(object):
+class UIProperties(object):
     charset: dict = None
     paths: dict = None
     images: dict = None
@@ -32,35 +32,18 @@ class Properties(object):
         self.images["field_open"] = tk.PhotoImage(file=self.paths["icons"] + 'bg/field_open.png')
 
 
-class Game(object):
-    """
-    Class with all control variables and methods to control the game.
-    """
-    player: str = "none"
-    win: bool = None
-    exit: bool = False
-
-    time: Time = Time()
-
-    marked_fields: List[Tuple[int, int]] = list()  # List with the marked fields
-    c_marked_fields: int = 0
-
-    def __init__(self, player: str):
-        self.player = player
-
-
 class PlayableBoard(tk.Frame):
     """
     UI Implementation of the minesweeper game.
     """
     board: MinesweeperBoard = None
-    properties: Properties = None
+    properties: UIProperties = None
     game_info: Game = None
 
     __threads: List[Thread] = list()  # list of threads
     __fields = list()  # List of the fields and his associated buttons
 
-    def __init__(self, properties: Properties, info: Game, board: MinesweeperBoard, master=None):
+    def __init__(self, properties: UIProperties, info: Game, board: MinesweeperBoard, master=None):
         super(PlayableBoard, self).__init__(master)
         self.master = master
         self.game_info = info
@@ -73,7 +56,7 @@ class PlayableBoard(tk.Frame):
     def __configure(self):
         self.master.resizable(False, False)
         self.properties.load_images()
-        self.master.title("Minesweeper")
+        self.master.title(self.game_info.settings.language.general["TITLE"])
         self.master.attributes()
         # app.master.iconbitmap(r'icons/ico/bomb_256.ico')  # Use this is raising a TclError "bitmap not defined"
         self.tk.call('wm', 'iconphoto', self.master._w,
@@ -103,7 +86,9 @@ class PlayableBoard(tk.Frame):
                 if qtd != self.game_info.c_marked_fields or qtd == -1:
                     qtd = self.game_info.c_marked_fields
 
-                    tk.Label(parent, text="Bombs: {}/{}".format(qtd, self.board.total_bombs)) \
+                    tk.Label(parent, text="{}: {}/{}".format(self.game_info.settings.language.general["BOMBS"],
+                                                             qtd,
+                                                             self.board.total_bombs)) \
                         .grid(row=0, column=2)
             else:
                 return
@@ -123,7 +108,7 @@ class PlayableBoard(tk.Frame):
         top_frame = tk.Frame(self.master)
         top_frame.grid(row=1)
 
-        tk.Label(top_frame, text="Time: ").grid(row=0, column=0)
+        tk.Label(top_frame, text="{}: ".format(self.game_info.settings.language.general["TIME"])).grid(row=0, column=0)
         self.__threads.append(self.__show_time(top_frame, 0.5))
         self.__threads.append(self.__update_game_info(top_frame))
 
@@ -195,7 +180,7 @@ class PlayableBoard(tk.Frame):
                 # Open all adjacent empty fields
                 self.__open_empty_fields(coords)
             else:
-                raise RuntimeError("An error has occurred")
+                raise RuntimeError(self.game_info.settings.language.error["RUNTIME"])
 
             self.__is_win()
 
@@ -270,18 +255,23 @@ class PlayableBoard(tk.Frame):
         :return: None
         """
         if self.game_info.win is None:
-            if messagebox.askokcancel("Quit", "You want to quit now?"):
+            if messagebox.askokcancel(self.game_info.settings.language.quit["TITLE"],
+                                      self.game_info.settings.language.quit["MESSAGE"]):
                 self.game_info.exit = True
         elif self.game_info.win is True:
             self.game_info.time.end_time = time()
-            self.game_info.time.all_time = Time.calculate_time(self.game_info.time.start_time, self.game_info.time.end_time)
+            self.game_info.time.all_time = Time.calculate_time(
+                self.game_info.time.start_time,
+                self.game_info.time.end_time)
 
-            messagebox.showinfo("End of game", "Congratulations {}! You won the game in {}!".format(
+            messagebox.showinfo(self.game_info.settings.language.end_game["TITLE"],
+                                self.game_info.settings.language.end_game["WIN_MESSAGE"].format(
                 self.game_info.player,
                 Time.format_time(self.game_info.time.all_time)))
             self.game_info.exit = True
         elif self.game_info.win is False:
-            messagebox.showerror("End of game", "You lose the game!")
+            messagebox.showerror(self.game_info.settings.language.end_game["TITLE"],
+                                 self.game_info.settings.language.end_game["LOSE_MESSAGE"])
             self.game_info.exit = True
 
         if self.game_info.exit is True:  # terminate all threads correctly

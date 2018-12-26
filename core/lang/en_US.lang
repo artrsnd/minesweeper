@@ -1,0 +1,17 @@
+[GENERAL]
+TITLE=Minesweeper
+BOMBS=Bombs
+TIME=Time
+
+[END_GAME]
+TITLE=End of the Game
+WIN_MESSAGE=Congratulations {}! You won the game in {}! :)
+LOSE_MESSAGE=You lose the game! :(
+
+[QUIT]
+TITLE=Quit
+MESSAGE=Do you want to quit now?
+
+[ERROR]
+RUNTIME_ERROR=An error has occurred
+
